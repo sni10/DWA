@@ -3,4 +3,4 @@ __pycache__/
 *.pyo
 da_tokens.db
 .idea/
-
+.pytest_cache/
