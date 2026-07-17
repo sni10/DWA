@@ -2,7 +2,6 @@ name: Release
 
 on:
   push:
-    branches: [main]
     tags:
       - "v*.*.*"
 
@@ -37,19 +36,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get version
-        id: version
-        run: |
-          # Use tag if available, otherwise generate from short SHA
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=v0.0.0-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          fi
-
       - name: Generate changelog
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | head -n1)
+          PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p')
           if [ -z "$PREV_TAG" ]; then
             git log --pretty=format:"- %s (%h)" > CHANGELOG.md
           else
@@ -59,8 +48,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: "🎨 Send to DeviantArt ${{ steps.version.outputs.VERSION }}"
+          name: "🎨 Send to DeviantArt ${{ github.ref_name }}"
           body_path: CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
