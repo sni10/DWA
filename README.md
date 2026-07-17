@@ -17,12 +17,16 @@ Generate an image → it gets uploaded to DeviantArt. No manual downloads, no br
 
 ## 📥 Installation
 
-1. Copy the `DWA` folder into your `ComfyUI/custom_nodes/` directory:
-   ```
-   ComfyUI/custom_nodes/DWA/
-   ```
-2. Restart ComfyUI
-3. The node **"🎨 Send to DeviantArt"** will appear in the **output** category
+### Via ComfyUI Manager (recommended)
+Search for **"DeviantArt Sender"** in ComfyUI Manager and click Install.
+
+### Manual
+```bash
+cd ComfyUI/custom_nodes/
+git clone https://github.com/sni10/DWA.git
+```
+
+Restart ComfyUI. The node **"🎨 Send to DeviantArt"** will appear in the **output** category.
 
 > 💡 Dependencies install automatically. If not — there's a `requirements.txt` in the folder.
 
