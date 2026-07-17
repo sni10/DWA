@@ -15,6 +15,8 @@ Generate an image → it gets uploaded to DeviantArt. No manual downloads, no br
 
 ---
 
+![img.png](asset/img.png)
+
 ## 📥 Installation
 
 ### Via ComfyUI Manager (recommended)
