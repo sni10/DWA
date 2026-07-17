@@ -2,8 +2,7 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [main]
 
 jobs:
   test:
@@ -36,19 +35,48 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate changelog
+      - name: Calculate next version
+        id: version
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          # Get latest tag, default to v0.0.0 if none
+          LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [ -z "$LATEST_TAG" ]; then
+            NEXT="v0.1.0"
+          else
+            # Bump patch version
+            MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | tr -d 'v')
+            MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+            PATCH=$(echo $LATEST_TAG | cut -d. -f3)
+            PATCH=$((PATCH + 1))
+            NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "TAG=$NEXT" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
           if [ -z "$PREV_TAG" ]; then
             git log --pretty=format:"- %s (%h)" > CHANGELOG.md
           else
             git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD > CHANGELOG.md
           fi
+          echo "--- Changelog ---"
+          cat CHANGELOG.md
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.TAG }}
+          git push origin ${{ steps.version.outputs.TAG }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "🎨 Send to DeviantArt ${{ github.ref_name }}"
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: "🎨 Send to DeviantArt ${{ steps.version.outputs.TAG }}"
           body_path: CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
