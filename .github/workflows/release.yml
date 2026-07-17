@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*.*.*"
 
@@ -9,10 +10,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -23,8 +24,7 @@ jobs:
           pip install pytest
 
       - name: Run tests
-        working-directory: tests
-        run: python -m pytest -v
+        run: cd tests && python -m pytest -v
 
   release:
     needs: test
@@ -33,33 +33,34 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Get version from tag
+      - name: Get version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+        run: |
+          # Use tag if available, otherwise generate from short SHA
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=v0.0.0-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate changelog
-        id: changelog
         run: |
-          # Get commits since last tag
-          PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          PREV_TAG=$(git tag --sort=-creatordate | head -n1)
           if [ -z "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+            git log --pretty=format:"- %s (%h)" > CHANGELOG.md
           else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+            git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD > CHANGELOG.md
           fi
-          # Write to file for the release body
-          echo "$CHANGELOG" > CHANGELOG.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
           name: "🎨 Send to DeviantArt ${{ steps.version.outputs.VERSION }}"
           body_path: CHANGELOG.md
-          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
