@@ -132,7 +132,7 @@ class TestGenerateTitle:
         assert generate_title_from_filename("hello.bmp") == "hello"
 
     def test_windows_path(self):
-        assert generate_title_from_filename("C:\\Users\\output\\cool_image_01.png") == "cool image 01"
+        assert generate_title_from_filename("C:/Users/output/cool_image_01.png") == "cool image 01"
 
 
 class TestFindLatestFile:
