@@ -1,5 +1,12 @@
 # 🎨 Send to DeviantArt — ComfyUI Node
 
+[![Release](https://img.shields.io/github/v/release/sni10/DWA?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sni10/DWA/releases)
+[![Tests](https://img.shields.io/github/actions/workflow/status/sni10/DWA/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=Tests)](https://github.com/sni10/DWA/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/sni10/DWA?style=for-the-badge&logo=codecov&logoColor=white)](https://codecov.io/gh/sni10/DWA)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![ComfyUI](https://img.shields.io/badge/ComfyUI-Node-1A1A1A?style=for-the-badge&logo=comfyui&logoColor=white)](https://github.com/comfyanonymous/ComfyUI)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
 Automatically publish your generated images to DeviantArt straight from ComfyUI.  
 Generate an image → it gets uploaded to DeviantArt. No manual downloads, no browser tabs, no extra steps.
 
