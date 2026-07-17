@@ -12,8 +12,8 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from da_stash import get_content_type, to_base36, StashUploadResult
-from da_publish import PublishResult
+from da_stash import get_content_type, to_base36, StashUploadResult, upload_to_stash
+from da_publish import PublishResult, publish_deviation
 
 
 # ── Functions copied from deviantart_node.py for testing ──
@@ -22,6 +22,7 @@ from da_publish import PublishResult
 import glob
 import re
 from typing import Optional
+from unittest.mock import patch, MagicMock
 
 SUPPORTED_EXTENSIONS = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"]
 
@@ -210,3 +211,172 @@ class TestPublishResult:
         r = PublishResult(success=False, error="fail")
         assert not r.success and r.error == "fail"
 
+
+class TestUploadToStash:
+    """Tests for upload_to_stash with mocked HTTP requests."""
+
+    def test_file_not_found(self):
+        result = upload_to_stash("/nonexistent/file.png", "fake_token")
+        assert not result.success
+        assert "not found" in result.error.lower()
+
+    @patch("da_stash.requests.post")
+    def test_success(self, mock_post, tmp_path):
+        img = tmp_path / "art.png"
+        img.write_bytes(b"\x89PNG fake")
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "success",
+            "itemid": 99999,
+            "stack": "test_stack",
+            "stackid": 42,
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = upload_to_stash(str(img), "token123", title="My Art", tags=["ai", "digital"])
+        assert result.success
+        assert result.itemid == 99999
+        assert result.stash_url == f"https://sta.sh/0{to_base36(99999)}"
+
+    @patch("da_stash.requests.post")
+    def test_api_error(self, mock_post, tmp_path):
+        img = tmp_path / "art.png"
+        img.write_bytes(b"\x89PNG fake")
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "error",
+            "error": "invalid_token",
+            "error_description": "Token is expired",
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = upload_to_stash(str(img), "bad_token")
+        assert not result.success
+        assert "expired" in result.error.lower()
+
+    @patch("da_stash.requests.post")
+    def test_no_itemid_in_response(self, mock_post, tmp_path):
+        img = tmp_path / "art.png"
+        img.write_bytes(b"\x89PNG fake")
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"status": "success"}
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = upload_to_stash(str(img), "token")
+        assert not result.success
+        assert "itemid" in result.error.lower()
+
+    @patch("da_stash.requests.post")
+    def test_network_error(self, mock_post, tmp_path):
+        img = tmp_path / "art.png"
+        img.write_bytes(b"\x89PNG fake")
+
+        import requests as req
+        mock_post.side_effect = req.ConnectionError("Connection refused")
+
+        result = upload_to_stash(str(img), "token")
+        assert not result.success
+        assert "failed" in result.error.lower()
+
+    @patch("da_stash.requests.post")
+    def test_all_optional_params(self, mock_post, tmp_path):
+        img = tmp_path / "art.jpg"
+        img.write_bytes(b"\xFF\xD8 fake jpeg")
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"status": "success", "itemid": 1}
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = upload_to_stash(
+            str(img), "token",
+            title="Test Title",
+            artist_comments="Nice art",
+            tags=["a", "b"],
+            original_url="https://example.com",
+            is_dirty=True,
+            noai=True,
+            is_ai_generated=True,
+            stack="mystack",
+            stackid=5,
+        )
+        assert result.success
+
+
+class TestPublishDeviation:
+    """Tests for publish_deviation with mocked HTTP requests."""
+
+    @patch("da_publish.requests.post")
+    def test_success(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "success",
+            "deviationid": "ABC-123",
+            "url": "https://deviantart.com/art/test-123",
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = publish_deviation("token", itemid=99999, tags=["art"])
+        assert result.success
+        assert result.deviationid == "ABC-123"
+        assert "deviantart.com" in result.url
+
+    @patch("da_publish.requests.post")
+    def test_api_error(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "error",
+            "error": "invalid_request",
+            "error_description": "itemid not found",
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = publish_deviation("token", itemid=0)
+        assert not result.success
+        assert "not found" in result.error.lower()
+
+    @patch("da_publish.requests.post")
+    def test_network_error(self, mock_post):
+        import requests as req
+        mock_post.side_effect = req.ConnectionError("timeout")
+
+        result = publish_deviation("token", itemid=1)
+        assert not result.success
+        assert "failed" in result.error.lower()
+
+    @patch("da_publish.requests.post")
+    def test_all_params(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "success",
+            "deviationid": "X",
+            "url": "https://example.com",
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        result = publish_deviation(
+            "token",
+            itemid=1,
+            is_mature=True,
+            mature_level="strict",
+            mature_classification=["nudity", "gore"],
+            tags=["a", "b"],
+            display_resolution=8,
+            galleryids=["UUID-1", "UUID-2"],
+            allow_comments=False,
+            allow_free_download=False,
+            add_watermark=True,
+            is_ai_generated=True,
+            noai=True,
+            feature=False,
+        )
+        assert result.success
